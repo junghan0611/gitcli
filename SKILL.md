@@ -36,6 +36,7 @@ gitcli day --years-ago 1 --me           # 1년 전 오늘
 gitcli day --days-ago 7 --me            # 7일 전
 gitcli day --repos ~/repos/gh --me      # 특정 디렉토리만
 gitcli day --me --tz +09:00             # UTC 서버에서 KST 기준 조회
+gitcli day --me --max 10                # 상세 모드에서 최대 10커밋만
 ```
 
 **`--summary` 출력** (~500B, 96% 절감):
