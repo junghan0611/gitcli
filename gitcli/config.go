@@ -2,6 +2,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,7 @@ func DefaultAuthorPatterns() []string {
 	configPath := filepath.Join(home, ".config", "gitcli", "authors")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: %s not found — --me filter disabled (all commits included)\n", configPath)
 		return nil
 	}
 

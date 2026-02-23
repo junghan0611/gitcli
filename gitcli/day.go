@@ -43,6 +43,7 @@ func QueryDayMe(repos []Repo, date string) DayResult {
 	result := DayResult{
 		Date:      date,
 		DayOfWeek: dayOfWeek(date),
+		Repos:     []DayRepo{},
 	}
 
 	sinceDate := date + "T00:00:00"
@@ -105,6 +106,7 @@ func QueryDay(repos []Repo, date string, authorFilter string) DayResult {
 	result := DayResult{
 		Date:      date,
 		DayOfWeek: dayOfWeek(date),
+		Repos:     []DayRepo{},
 	}
 
 	// git log format: hash|time|message|author
