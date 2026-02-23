@@ -31,10 +31,11 @@ type DayCommit struct {
 }
 
 type DaySummary struct {
-	ActiveRepos int    `json:"active_repos"`
-	FirstCommit string `json:"first_commit"`
-	LastCommit  string `json:"last_commit"`
+	ActiveRepos int     `json:"active_repos"`
+	FirstCommit string  `json:"first_commit"`
+	LastCommit  string  `json:"last_commit"`
 	ActiveHours float64 `json:"active_hours"`
+	Truncated   int     `json:"truncated,omitempty"`
 }
 
 // QueryDayMe queries using ~/.config/gitcli/authors patterns.
@@ -209,6 +210,37 @@ func (r DayResult) ToDaySummary() DaySummaryResult {
 		s.ReposSummary[i] = RepoSummaryItem{Name: repo.Name, Commits: len(repo.Commits)}
 	}
 	return s
+}
+
+// truncateDay limits total commits across all repos, keeping the most recent.
+func truncateDay(r DayResult, max int) DayResult {
+	if r.TotalCommits <= max {
+		return r
+	}
+	remaining := max
+	for i := range r.Repos {
+		if remaining <= 0 {
+			r.Repos[i].Commits = nil
+		} else if len(r.Repos[i].Commits) > remaining {
+			r.Repos[i].Commits = r.Repos[i].Commits[:remaining]
+			remaining = 0
+		} else {
+			remaining -= len(r.Repos[i].Commits)
+		}
+	}
+	// Remove empty repos
+	var kept []DayRepo
+	for _, repo := range r.Repos {
+		if len(repo.Commits) > 0 {
+			kept = append(kept, repo)
+		}
+	}
+	if kept == nil {
+		kept = []DayRepo{}
+	}
+	r.Repos = kept
+	r.Summary.Truncated = max
+	return r
 }
 
 // dayRange returns since/until strings for git log.

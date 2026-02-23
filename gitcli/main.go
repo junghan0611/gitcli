@@ -50,6 +50,7 @@ func cmdDay() {
 	daysAgo := getFlag(args, "--days-ago", "")
 	tz := getFlag(args, "--tz", "")
 	summary := hasFlag(args, "--summary")
+	maxStr := getFlag(args, "--max", "0")
 
 	resolved, err := resolveDate(date, yearsAgo, daysAgo)
 	if err != nil {
@@ -69,6 +70,11 @@ func cmdDay() {
 	if summary {
 		printJSON(result.ToDaySummary())
 	} else {
+		maxCommits := 0
+		fmt.Sscanf(maxStr, "%d", &maxCommits)
+		if maxCommits > 0 {
+			result = truncateDay(result, maxCommits)
+		}
 		printJSON(result)
 	}
 }

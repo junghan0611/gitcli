@@ -266,3 +266,33 @@ func TestToDaySummaryEmpty(t *testing.T) {
 		t.Errorf("ReposSummary should be empty, got %d", len(s.ReposSummary))
 	}
 }
+
+func TestTruncateDay(t *testing.T) {
+	r := DayResult{
+		TotalCommits: 10,
+		Repos: []DayRepo{
+			{Name: "a", Commits: []DayCommit{{Hash: "1"}, {Hash: "2"}, {Hash: "3"}}},
+			{Name: "b", Commits: []DayCommit{{Hash: "4"}, {Hash: "5"}, {Hash: "6"}, {Hash: "7"}}},
+			{Name: "c", Commits: []DayCommit{{Hash: "8"}, {Hash: "9"}, {Hash: "10"}}},
+		},
+	}
+
+	// Truncate to 5
+	tr := truncateDay(r, 5)
+	total := 0
+	for _, repo := range tr.Repos {
+		total += len(repo.Commits)
+	}
+	if total != 5 {
+		t.Errorf("truncated to %d commits, want 5", total)
+	}
+	if tr.Summary.Truncated != 5 {
+		t.Errorf("Truncated = %d, want 5", tr.Summary.Truncated)
+	}
+
+	// No truncation needed
+	tr2 := truncateDay(r, 100)
+	if tr2.Summary.Truncated != 0 {
+		t.Errorf("should not truncate, got %d", tr2.Summary.Truncated)
+	}
+}
