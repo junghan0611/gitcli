@@ -69,7 +69,7 @@ func TestQueryDay(t *testing.T) {
 	})
 
 	repos := DiscoverRepos([]string{base})
-	result := QueryDay(repos, "2025-10-10", "")
+	result := QueryDay(repos, "2025-10-10", "", "")
 
 	if result.Date != "2025-10-10" {
 		t.Errorf("date = %q", result.Date)
@@ -95,13 +95,13 @@ func TestQueryDayAuthorFilter(t *testing.T) {
 	repos := DiscoverRepos([]string{base})
 
 	// Filter by matching author
-	result := QueryDay(repos, "2025-10-10", "testuser")
+	result := QueryDay(repos, "2025-10-10", "testuser", "")
 	if result.TotalCommits != 1 {
 		t.Errorf("with matching author: total=%d, want 1", result.TotalCommits)
 	}
 
 	// Filter by non-matching author
-	result = QueryDay(repos, "2025-10-10", "nobody")
+	result = QueryDay(repos, "2025-10-10", "nobody", "")
 	if result.TotalCommits != 0 {
 		t.Errorf("with non-matching author: total=%d, want 0", result.TotalCommits)
 	}
@@ -122,7 +122,7 @@ func TestQueryDayMe(t *testing.T) {
 	})
 
 	repos := DiscoverRepos([]string{repoDir})
-	result := QueryDayMe(repos, "2025-10-10")
+	result := QueryDayMe(repos, "2025-10-10", "")
 	if result.TotalCommits != 1 {
 		t.Errorf("expected 1 with --me, got %d", result.TotalCommits)
 	}
@@ -185,7 +185,7 @@ func TestQueryDayMeFiltersForks(t *testing.T) {
 	repos := DiscoverRepos([]string{repoDir})
 
 	// QueryDayMe should only return testuser's commit
-	result := QueryDayMe(repos, "2025-10-10")
+	result := QueryDayMe(repos, "2025-10-10", "")
 	if result.TotalCommits != 1 {
 		t.Errorf("expected 1 (only my commit), got %d", result.TotalCommits)
 	}
@@ -203,8 +203,66 @@ func TestQueryDayEmpty(t *testing.T) {
 	})
 
 	repos := DiscoverRepos([]string{base})
-	result := QueryDay(repos, "2025-10-10", "")
+	result := QueryDay(repos, "2025-10-10", "", "")
 	if result.TotalCommits != 0 {
 		t.Errorf("expected 0, got %d", result.TotalCommits)
+	}
+}
+
+func TestDayRange(t *testing.T) {
+	tests := []struct {
+		date, tz, wantSince, wantUntil string
+	}{
+		{"2025-10-10", "", "2025-10-10T00:00:00", "2025-10-10T23:59:59"},
+		{"2025-10-10", "+09:00", "2025-10-10T00:00:00+09:00", "2025-10-10T23:59:59+09:00"},
+		{"2026-02-17", "+09:00", "2026-02-17T00:00:00+09:00", "2026-02-17T23:59:59+09:00"},
+		{"2026-02-17", "-05:00", "2026-02-17T00:00:00-05:00", "2026-02-17T23:59:59-05:00"},
+	}
+	for _, tt := range tests {
+		since, until := dayRange(tt.date, tt.tz)
+		if since != tt.wantSince || until != tt.wantUntil {
+			t.Errorf("dayRange(%q, %q) = (%q, %q), want (%q, %q)",
+				tt.date, tt.tz, since, until, tt.wantSince, tt.wantUntil)
+		}
+	}
+}
+
+func TestToDaySummary(t *testing.T) {
+	result := DayResult{
+		Date:      "2025-10-10",
+		DayOfWeek: "Friday",
+		Repos: []DayRepo{
+			{Name: "repo-a", Commits: []DayCommit{{Hash: "abc"}, {Hash: "def"}}},
+			{Name: "repo-b", Commits: []DayCommit{{Hash: "ghi"}}},
+		},
+		TotalCommits: 3,
+		Summary: DaySummary{ActiveRepos: 2, FirstCommit: "09:00", LastCommit: "17:00", ActiveHours: 8.0},
+	}
+
+	s := result.ToDaySummary()
+
+	if s.TotalCommits != 3 {
+		t.Errorf("TotalCommits = %d, want 3", s.TotalCommits)
+	}
+	if len(s.ReposSummary) != 2 {
+		t.Fatalf("ReposSummary len = %d, want 2", len(s.ReposSummary))
+	}
+	if s.ReposSummary[0].Name != "repo-a" || s.ReposSummary[0].Commits != 2 {
+		t.Errorf("repo-a: got %+v", s.ReposSummary[0])
+	}
+	if s.ReposSummary[1].Name != "repo-b" || s.ReposSummary[1].Commits != 1 {
+		t.Errorf("repo-b: got %+v", s.ReposSummary[1])
+	}
+}
+
+func TestToDaySummaryEmpty(t *testing.T) {
+	result := DayResult{
+		Date:      "2020-01-01",
+		DayOfWeek: "Wednesday",
+		Repos:     []DayRepo{},
+	}
+	s := result.ToDaySummary()
+	if len(s.ReposSummary) != 0 {
+		t.Errorf("ReposSummary should be empty, got %d", len(s.ReposSummary))
 	}
 }

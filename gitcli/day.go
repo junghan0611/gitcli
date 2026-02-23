@@ -38,7 +38,8 @@ type DaySummary struct {
 }
 
 // QueryDayMe queries using ~/.config/gitcli/authors patterns.
-func QueryDayMe(repos []Repo, date string) DayResult {
+// tz is an optional timezone offset like "+09:00". Empty means local time.
+func QueryDayMe(repos []Repo, date string, tz string) DayResult {
 	patterns := DefaultAuthorPatterns()
 	result := DayResult{
 		Date:      date,
@@ -46,8 +47,7 @@ func QueryDayMe(repos []Repo, date string) DayResult {
 		Repos:     []DayRepo{},
 	}
 
-	sinceDate := date + "T00:00:00"
-	untilDate := date + "T23:59:59"
+	sinceDate, untilDate := dayRange(date, tz)
 	logFmt := "%h|%H|%ad|%s|%an"
 	var allTimes []string
 
@@ -102,18 +102,16 @@ func QueryDayMe(repos []Repo, date string) DayResult {
 }
 
 // QueryDay queries all repos for commits on a specific date.
-func QueryDay(repos []Repo, date string, authorFilter string) DayResult {
+// tz is an optional timezone offset like "+09:00". Empty means local time.
+func QueryDay(repos []Repo, date string, authorFilter string, tz string) DayResult {
 	result := DayResult{
 		Date:      date,
 		DayOfWeek: dayOfWeek(date),
 		Repos:     []DayRepo{},
 	}
 
-	// git log format: hash|time|message|author
-	// --numstat for file stats
 	logFmt := "%h|%H|%ad|%s|%an"
-	sinceDate := date + "T00:00:00"
-	untilDate := date + "T23:59:59"
+	sinceDate, untilDate := dayRange(date, tz)
 
 	var allTimes []string
 
@@ -182,6 +180,45 @@ func QueryDay(repos []Repo, date string, authorFilter string) DayResult {
 	}
 
 	return result
+}
+
+// DaySummaryResult is a compact version of DayResult without individual commits.
+type DaySummaryResult struct {
+	Date         string            `json:"date"`
+	DayOfWeek    string            `json:"day_of_week"`
+	TotalCommits int               `json:"total_commits"`
+	ReposSummary []RepoSummaryItem `json:"repos_summary"`
+	Summary      DaySummary        `json:"summary"`
+}
+
+type RepoSummaryItem struct {
+	Name    string `json:"name"`
+	Commits int    `json:"commits"`
+}
+
+// ToDaySummary converts a full DayResult to a compact summary.
+func (r DayResult) ToDaySummary() DaySummaryResult {
+	s := DaySummaryResult{
+		Date:         r.Date,
+		DayOfWeek:    r.DayOfWeek,
+		TotalCommits: r.TotalCommits,
+		ReposSummary: make([]RepoSummaryItem, len(r.Repos)),
+		Summary:      r.Summary,
+	}
+	for i, repo := range r.Repos {
+		s.ReposSummary[i] = RepoSummaryItem{Name: repo.Name, Commits: len(repo.Commits)}
+	}
+	return s
+}
+
+// dayRange returns since/until strings for git log.
+// If tz is set (e.g. "+09:00"), uses ISO 8601 offset so git interprets
+// the day boundary in that timezone.
+func dayRange(date, tz string) (string, string) {
+	if tz == "" {
+		return date + "T00:00:00", date + "T23:59:59"
+	}
+	return date + "T00:00:00" + tz, date + "T23:59:59" + tz
 }
 
 // commitStats returns files changed, insertions, deletions for a commit.

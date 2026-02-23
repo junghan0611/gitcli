@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -48,6 +48,8 @@ func cmdDay() {
 	me := hasFlag(args, "--me")
 	yearsAgo := getFlag(args, "--years-ago", "")
 	daysAgo := getFlag(args, "--days-ago", "")
+	tz := getFlag(args, "--tz", "")
+	summary := hasFlag(args, "--summary")
 
 	resolved, err := resolveDate(date, yearsAgo, daysAgo)
 	if err != nil {
@@ -57,11 +59,16 @@ func cmdDay() {
 	dirs := strings.Split(reposStr, ",")
 	repos := DiscoverRepos(dirs)
 
+	var result DayResult
 	if me {
-		result := QueryDayMe(repos, resolved)
-		printJSON(result)
+		result = QueryDayMe(repos, resolved, tz)
 	} else {
-		result := QueryDay(repos, resolved, author)
+		result = QueryDay(repos, resolved, author, tz)
+	}
+
+	if summary {
+		printJSON(result.ToDaySummary())
+	} else {
 		printJSON(result)
 	}
 }
@@ -153,7 +160,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `gitcli %s — Local git timeline CLI for AI agents
 
 Usage:
-  gitcli day [DATE] [--repos DIR,...] [--author AUTHOR] [--me] [--years-ago N] [--days-ago N]
+  gitcli day [DATE] [--repos DIR,...] [--author AUTHOR] [--me] [--years-ago N] [--days-ago N] [--tz OFFSET] [--summary]
   gitcli repos [--repos DIR,...]
   gitcli log <repo-name> [--repos DIR,...] [--days N] [--from DATE] [--to DATE] [--author AUTHOR]
   gitcli timeline [--repos DIR,...] [--days N] [--month YYYY-MM] [--author AUTHOR]
@@ -168,5 +175,7 @@ Options:
   --repos DIR,...   Search directories (default: ~/repos/gh,~/repos/work)
   --author AUTHOR   Filter by author name/email
   --me              Filter using ~/.config/gitcli/authors patterns
+  --tz OFFSET       Timezone offset for day boundary (e.g. +09:00 for KST)
+  --summary         Compact output: repo names + commit counts only (no details)
 `, Version)
 }
