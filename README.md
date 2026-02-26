@@ -2,6 +2,8 @@
 
 Local git timeline CLI for AI agents. Queries commit history across multiple repositories.
 
+> **AI Agent Skill**: [pi-skills/gitcli](https://github.com/junghan0611/pi-skills/tree/main/gitcli) — 에이전트용 스킬 문서는 pi-skills 리포에서 관리합니다.
+
 ## Install
 
 ```bash
